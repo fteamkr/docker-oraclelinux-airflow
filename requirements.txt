@@ -1,0 +1,5 @@
+# https://pip.pypa.io/en/stable/reference/requirements-file-format/
+
+# https://airflow.apache.org/docs/apache-airflow/2.8.4/start.html
+# https://airflow.apache.org/docs/apache-airflow/2.8.4/installation/installing-from-pypi.html
+apache-airflow[async,celery,docker,postgres,redis]==2.8.4
