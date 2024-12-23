@@ -1,0 +1,208 @@
+# https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md
+# https://docs.docker.com/compose/intro/history/
+version: "3.8"
+
+# https://airflow.apache.org/docs/apache-airflow/2.8.4/docker-compose.yaml
+
+services:
+  # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#service-configuration-reference
+
+  webserver:
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    depends_on:
+      - postgres
+      - redis
+
+    deploy:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#deploy
+      mode: replicated
+      replicas: 1
+
+    user: "1000:0"
+
+    environment:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#environment
+      TZ: "Asia/Seoul"
+
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+    volumes:
+      - ./dags:/airflow/dags
+      - ./logs:/airflow/logs
+      - ./plugins:/airflow/plugins
+
+    networks:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#networks
+      airflow-network:
+
+    command: ["airflow", "webserver"]
+
+  scheduler:
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    depends_on:
+      - postgres
+      - redis
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    user: "1000:0"
+
+    environment:
+      TZ: "Asia/Seoul"
+
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+    volumes:
+      - ./dags:/airflow/dags
+      - ./logs:/airflow/logs
+      - ./plugins:/airflow/plugins
+
+    networks:
+      airflow-network:
+
+    command: ["airflow", "scheduler"]
+
+  worker:
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    depends_on:
+      - postgres
+      - redis
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    user: "1000:0"
+
+    environment:
+      TZ: "Asia/Seoul"
+
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+    volumes:
+      - ./dags:/airflow/dags
+      - ./logs:/airflow/logs
+      - ./plugins:/airflow/plugins
+
+    networks:
+      airflow-network:
+
+    command: ["celery", "worker", "-A", "airflow.worker", "--loglevel=INFO"]
+
+  triggerer:
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    depends_on:
+      - postgres
+      - redis
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    user: "1000:0"
+
+    environment:
+      TZ: "Asia/Seoul"
+
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+    volumes:
+      - ./dags:/airflow/dags
+      - ./logs:/airflow/logs
+      - ./plugins:/airflow/plugins
+
+    networks:
+      airflow-network:
+
+    command: ["airflow", "triggerer"]
+
+  redis:
+    # https://hub.docker.com/_/redis/
+    image: "redis:7-bookworm"
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    networks:
+      airflow-network:
+
+  postgres:
+    # https://hub.docker.com/_/postgres
+    image: "postgres:13-bookworm"
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    environment:
+      POSTGRES_USER: "airflow"
+      POSTGRES_PASSWORD: "airflow"
+      POSTGRES_DB: "airflow"
+
+    networks:
+      airflow-network:
+
+networks:
+  # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#network-configuration-reference
+  airflow-network:
+    name: airflow-network
+    driver: overlay
