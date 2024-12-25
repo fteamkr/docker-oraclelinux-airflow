@@ -17,19 +17,23 @@ RUN /usr/bin/pip3.11 install uv
 
 WORKDIR /app
 
+# https://airflow.apache.org/docs/apache-airflow/2.8.4/start.html
+# https://airflow.apache.org/docs/apache-airflow/2.8.4/installation/installing-from-pypi.html
 
 ADD requirements.txt constraints.txt /app/
 
 # https://docs.astral.sh/uv/pip/environments/
 # https://docs.astral.sh/uv/pip/compatibility/
 RUN uv venv && \
-    uv pip install -r requirements.txt -c constraints.txt
+    uv pip install -r requirements.txt -c constraints.txt --compile-bytecode 
     
 # https://docs.astral.sh/uv/guides/integration/docker/#using-the-environment
 ENV PATH="/app/.venv/bin:$PATH"
 
-# https://airflow.apache.org/docs/apache-airflow/2.8.4/start.html
-# https://airflow.apache.org/docs/apache-airflow/2.8.4/installation/installing-from-pypi.html
+RUN adduser -c "First Last,RoomNumber,WorkPhone,HomePhone" -u "1000" -g "0" "airflow" && \
+    mkdir -p /opt/airflow && chown -R "airflow:0" /opt/airflow /home/airflow
+
+USER 1000:0
 
 EXPOSE 8080
 
