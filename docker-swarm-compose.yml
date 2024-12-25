@@ -1,0 +1,329 @@
+# https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md
+# https://docs.docker.com/compose/intro/history/
+version: "3.8"
+
+# https://airflow.apache.org/docs/apache-airflow/2.8.4/howto/docker-compose/
+# https://airflow.apache.org/docs/apache-airflow/2.8.4/docker-compose.yaml
+
+services:
+  # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#service-configuration-reference
+
+  postgres:
+    # https://hub.docker.com/_/postgres
+    image: "postgres:13-bookworm"
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+
+    user: "1000:1000"
+
+    environment:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#environment
+      TZ: "Asia/Seoul"
+
+      POSTGRES_USER: "airflow"
+      POSTGRES_PASSWORD: "airflow"
+      POSTGRES_DB: "airflow"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+
+    networks:
+      airflow-network:
+
+  redis:
+    # https://hub.docker.com/_/redis/
+    image: "redis:7-bookworm"
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 30s
+      retries: 50
+      start_period: 30s
+
+    user: "1000:1000"
+
+    environment:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#environment
+      TZ: "Asia/Seoul"
+
+    networks:
+      airflow-network:
+
+  init:
+    # https://airflow.apache.org/docs/apache-airflow/2.8.4/howto/set-up-database.html
+
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    deploy:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#deploy
+      mode: replicated
+      replicas: 1
+
+    environment:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#environment
+      TZ: "Asia/Seoul"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/howto/set-config.html
+      AIRFLOW_HOME: "/opt/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#core
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: "Asia/Seoul"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#api
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#database
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow-providers-celery/3.6.1/configurations-ref.html
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#webserver
+      AIRFLOW__WEBSERVER__BASE_URL: "http://localhost:8080/airflow"
+      AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: "Asia/Seoul"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+
+    networks:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#networks
+      airflow-network:
+
+    # https://airflow.apache.org/docs/apache-airflow/2.8.4/installation/setting-up-the-database.html
+    # https://airflow.apache.org/docs/apache-airflow/2.8.4/security/webserver.html#web-authentication
+    command:
+      [
+        "/bin/bash",
+        "-c",
+        "airflow db migrate && airflow users create --username admin --password admin --firstname Airflow --lastname Admin --role Admin --email airflowadmin@example.com || true",
+      ]
+
+  webserver:
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    deploy:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#deploy
+      mode: replicated
+      replicas: 1
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#environment
+      TZ: "Asia/Seoul"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/howto/set-config.html
+      AIRFLOW_HOME: "/opt/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#core
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: "Asia/Seoul"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#api
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#database
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow-providers-celery/3.6.1/configurations-ref.html
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#webserver
+      AIRFLOW__WEBSERVER__BASE_URL: "http://localhost:8080/airflow"
+      AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: "Asia/Seoul"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+
+    networks:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#networks
+      airflow-network:
+
+    command: ["airflow", "webserver"]
+
+  scheduler:
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    environment:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#environment
+      TZ: "Asia/Seoul"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/howto/set-config.html
+      AIRFLOW_HOME: "/opt/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#core
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: "Asia/Seoul"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#api
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#database
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow-providers-celery/3.6.1/configurations-ref.html
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+
+    networks:
+      airflow-network:
+
+    command: ["airflow", "scheduler"]
+
+  worker:
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    environment:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#environment
+      TZ: "Asia/Seoul"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/howto/set-config.html
+      AIRFLOW_HOME: "/opt/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#core
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: "Asia/Seoul"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#api
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#database
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow-providers-celery/3.6.1/configurations-ref.html
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+
+    networks:
+      airflow-network:
+
+    command: ["airflow", "celery", "worker"]
+
+  triggerer:
+    # build:
+    #   # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#build
+    #   context: .
+    #   dockerfile: Dockerfile-
+
+    # docker build -f Dockerfile-airflow -t airflow-oraclelinux .
+    image: airflow-oraclelinux
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    environment:
+      # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#environment
+      TZ: "Asia/Seoul"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/howto/set-config.html
+      AIRFLOW_HOME: "/opt/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#core
+      AIRFLOW__CORE__EXECUTOR: "CeleryExecutor"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: "Asia/Seoul"
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#api
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+
+      # https://airflow.apache.org/docs/apache-airflow/2.8.4/configurations-ref.html#database
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+
+      # https://airflow.apache.org/docs/apache-airflow-providers-celery/3.6.1/configurations-ref.html
+      AIRFLOW__CELERY__BROKER_URL: "redis://redis:6379/0"
+      AIRFLOW__CELERY__RESULT_BACKEND: "db+postgresql://airflow:airflow@postgres:5432/airflow"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+
+    networks:
+      airflow-network:
+
+    command: ["airflow", "triggerer"]
+
+networks:
+  # https://github.com/docker/compose/blob/v1/docs/Compose%20file%20reference%20(legacy)/version-3.md#network-configuration-reference
+  airflow-network:
+    name: airflow-network
+    driver: overlay
